@@ -1,0 +1,64 @@
+# =============================================================================
+#  RE: Code Veronica X - Custom Story Total Conversion
+#  .gitignore  --  NEVER commit game assets, copyrighted data, or secrets.
+# =============================================================================
+
+# --- Original / copyrighted game data (NEVER commit, NEVER publish) ---------
+# The user's own legally-obtained disc image and anything extracted from it.
+.game_iso/
+*.iso
+*.bin
+*.cue
+*.img
+*.mdf
+*.nrg
+
+# --- Extracted game data (derivative of copyrighted assets) -----------------
+data/raw/
+data/extracted/
+*.pss        # PS2 streamed video
+*.mpeg
+*.adpcm
+*.vag        # PS2 audio sample format
+*.ipu
+
+# --- Build output (contains injected copyrighted content) -------------------
+build/
+dist/
+*.xdelta
+*.xdelta3
+*.patch
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Secrets / credentials (NEVER commit) -----------------------------------
+.env
+.env.*
+*.pem
+*.key
+*.p12
+id_rsa
+id_rsa.pub
+credentials.json
+token.json
+
+# --- OS / editor cruft ------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.idea/
+.vscode/
