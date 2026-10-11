@@ -6,11 +6,13 @@ dumping real hex when the coarse signature is not specific enough.
 
 Accepts either an AFS archive (each member is classified) or a loose file (the file
 itself is classified), so `data/raw/SYSMES.ALD` and `data/raw/MRY.AFS` go through the
-same path.
+same path. Directories are expanded recursively, because `data/raw/` is a tree
+(`MOVIE/` holds the `.PSS` streams), not a flat directory.
 
 Usage:
     python -m tools.formats.survey                        # every data/raw file
     python -m tools.formats.survey data/raw/ITEM1.AFS     # one archive
+    python -m tools.formats.survey data/raw/MOVIE         # one directory, recursively
     python -m tools.formats.survey --heads 8 data/raw/MRY.AFS
     python -m tools.formats.survey --json build/survey.json
 """
@@ -50,6 +52,25 @@ KNOWN_MAGICS: tuple[tuple[bytes, str], ...] = (
     (b"MDL\x00", "MDL"),
     (b"pBAV", "pBAV"),
 )
+
+
+def expand_targets(paths) -> list[str]:
+    """Expand directories into the files they contain, recursively.
+
+    `data/raw/` is a tree, not a flat directory: the 17 `.PSS` movie streams live in
+    `MOVIE/`. Passing a directory straight to `open()` raises `PermissionError` on
+    Windows (and `IsADirectoryError` on POSIX), so every default target must be walked
+    before it is probed.
+    """
+    out: list[str] = []
+    for p in paths:
+        if os.path.isdir(p):
+            for dirpath, dirnames, filenames in os.walk(p):
+                dirnames.sort()
+                out.extend(os.path.join(dirpath, n) for n in sorted(filenames))
+        else:
+            out.append(p)
+    return out
 
 
 def read_head(path: str, offset: int, size: int, n: int = HEAD_LEN) -> bytes:
@@ -176,12 +197,16 @@ def main(argv=None) -> int:
     )
     args = ap.parse_args(argv)
 
-    targets = args.paths
-    if not targets:
+    seeds = args.paths
+    if not seeds:
         if not os.path.isdir(RAW_DIR):
             print(f"no {RAW_DIR}/ - run Phase 1 extraction first", file=sys.stderr)
             return 2
-        targets = sorted(os.path.join(RAW_DIR, n) for n in os.listdir(RAW_DIR))
+        seeds = [RAW_DIR]
+    targets = expand_targets(seeds)
+    if not targets:
+        print("nothing to survey", file=sys.stderr)
+        return 2
 
     total: collections.Counter = collections.Counter()
     total_bytes: collections.Counter = collections.Counter()
@@ -191,7 +216,8 @@ def main(argv=None) -> int:
         reports.append(rep)
         total.update(rep["signatures"])
         total_bytes.update(rep["bytes_by_signature"])
-        print(f"\n== {os.path.basename(t)}  {rep['size']:,} bytes  {rep['members']} members")
+        rel = os.path.relpath(t, RAW_DIR) if t.startswith(RAW_DIR) else t
+        print(f"\n== {rel}  {rep['size']:,} bytes  {rep['members']} members")
         for sig, n in sorted(rep["signatures"].items(), key=lambda kv: -kv[1]):
             print(f"   {sig:22} {n:5}  {rep['bytes_by_signature'][sig]:>13,} bytes")
         if args.heads:
