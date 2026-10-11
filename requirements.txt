@@ -1,0 +1,22 @@
+# Pipeline dependencies - introduced per phase, not all at once.
+#
+# IMPORTANT: Phase 1 (`make unpack`) runs on the Python standard library ALONE.
+# No third-party ISO9660 or archive library is required, so a fresh checkout can
+# run the unpack stage with nothing but Python 3.11+. See docs/03-tech-stack-tools.md.
+
+# --- Testing -----------------------------------------------------------------
+# pytest is the intended runner. `python tests/run_tests.py` is a stdlib-only
+# fallback that runs the same test functions when pytest is not installed.
+pytest>=8.0
+
+# --- Phase 2+ (format reverse engineering) -----------------------------------
+# Uncomment when the phase that needs them starts, per docs/03-tech-stack-tools.md.
+# construct>=2.10      # declarative binary format specs
+# pyelftools>=0.31     # PS2 ELF main-executable inspection
+# capstone>=5.0        # MIPS R5900 (Emotion Engine) disassembly
+# pyyaml>=6.0          # authored content in content/
+# click>=8.1           # tool CLI layer
+
+# Not used: pycdlib is deliberately NOT a dependency. The ISO9660 reader in
+# tools/unpack/iso9660.py is hand-rolled so the extraction path has no install step
+# that can fail, and so its behaviour against this specific disc is fully inspectable.

@@ -17,7 +17,7 @@ unpack game files -> decode to structured data -> inject new content -> repack I
 ## Status
 
 - [x] Phase 0 — Setup & governance
-- [ ] Phase 1 — Asset acquisition & extraction
+- [x] Phase 1 — Asset acquisition & extraction
 - [ ] Phase 2 — File-format reverse engineering
 - [ ] Phase 3 — Tooling (unpack / repack / inject)
 - [ ] Phase 4 — World inventory (rooms, doors, items, triggers)
@@ -51,6 +51,18 @@ research/   reverse-engineering notes, format specs, memory captures
 skills/     reusable Bast procedure packages
 tools/      pipeline code (unpack, decode, inject, repack, test)
 ```
+
+## Phase 1 usage (unpack)
+
+Phase 1 turns your own disc image into a catalogued, checksummed tree. The extractor is
+stdlib-only and opens the ISO read-only — it never writes to your image.
+
+```
+python -m tools.unpack.extract --iso ".game_iso/<disc>.iso"   # -> data/raw/ + data/manifest.json
+python -m tools.unpack.extract --verify                        # re-hash the tree vs the manifest
+```
+
+`make unpack`, `make verify` and `make test` wrap the same commands (where `make` exists).
 
 ## The one-line strategy
 

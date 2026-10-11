@@ -1,6 +1,10 @@
 # =============================================================================
 #  RE: Code Veronica X - Custom Story Total Conversion
 #  .gitignore  --  NEVER commit game assets, copyrighted data, or secrets.
+#
+#  NOTE: git has no inline-comment syntax. A '#' only starts a comment at the
+#  BEGINNING of a line. Trailing "  # ..." text becomes part of the pattern and
+#  silently disables it. All comments here are on their own line.
 # =============================================================================
 
 # --- Original / copyrighted game data (NEVER commit, NEVER publish) ---------
@@ -16,10 +20,13 @@
 # --- Extracted game data (derivative of copyrighted assets) -----------------
 data/raw/
 data/extracted/
-*.pss        # PS2 streamed video
+# PS2 streamed video
+*.pss
 *.mpeg
+# PS2 audio
 *.adpcm
-*.vag        # PS2 audio sample format
+*.vag
+# PS2 IPU video
 *.ipu
 
 # --- Build output (contains injected copyrighted content) -------------------
