@@ -113,6 +113,28 @@ def encode_units(units: list[int], rule: str = RULE_THRESHOLD) -> list[int]:
     return out
 
 
+def merge_stored_units(stored: list[int], visible: list[int],
+                       rule: str = RULE_THRESHOLD) -> list[int]:
+    """Re-encode an edit position by position, keeping untouched stored bytes.
+
+    ``stored`` and ``visible`` must describe the same number of units. Where the
+    original stored unit already decodes to the new visible unit, the original byte is
+    kept verbatim; only a position whose letter actually changed is re-encoded.
+
+    This is what stops a one-character edit from rewriting a whole message's bank-A
+    glyphs (stored 0x41 for 'A') into the canonical bank B (0x21). Both render the same
+    text, so the text view cannot tell them apart -- but 592 of the 677 messages on the
+    real disc carry bank-A units, and re-encoding rewrote bytes the author never
+    touched (measured on the real disc: 8 of message 0's 10 stored units
+    change, i.e. 16 of its 20 text bytes).
+    """
+    canonical = encode_units(visible, rule)
+    decoded = decode_units(stored, rule)
+    return [old if old_visible == new_visible else new
+            for old, old_visible, new_visible, new
+            in zip(stored, decoded, visible, canonical)]
+
+
 def units_to_text(units: list[int]) -> str:
     return "".join(chr(u) if 0x20 <= u < 0x7F else "\\u%04x" % u for u in units)
 
@@ -262,21 +284,26 @@ class Message:
         return decode_units(self.units, rule)
 
     def set_text(self, text: str, rule: str = RULE_THRESHOLD) -> None:
-        """Replace the text part, keeping the terminator and any trailing units."""
+        """Replace the text part, keeping the terminator and any trailing units.
+
+        Characters the edit does not change keep the stored bytes the disc gave them
+        (see ``merge_stored_units``): a 'A' stored as bank-A 0x41 stays 0x41 when the
+        edit touches a different character, instead of being canonicalised to bank-B
+        0x21. Only positions whose *visible* unit changed are re-encoded.
+
+        When the text changes length the positions no longer line up with the old
+        stored units, so bank preservation is dropped for that message and the whole
+        text is encoded canonically. An insertion or deletion shifts every later
+        position, so a naive index-wise comparison would pair the wrong units; a
+        length change is a genuine rewrite of the span either way.
+        """
         visible = text_to_units(text)
-
-        # TODO(human): decide how unchanged units keep their original bank.
-        # encode_units() canonicalises every visible unit into bank B (stored 0x21 for
-        # the letter A), so editing one message also rewrites all of that message's
-        # bank-A units (stored 0x41 for the same letter) -- including characters the
-        # author never touched. 592 of the 677 messages on disc carry bank-A units, so
-        # a one-character edit can rewrite a whole message. Both banks render the same
-        # text today, but the disc goes to the trouble of storing them differently, so
-        # the font may not treat them alike. Only units that actually differ from the
-        # original should be re-encoded; the rest should keep the bytes the disc gave.
-
-        stored = encode_units(visible, rule)
         cut = self.units.index(TERMINATOR) if TERMINATOR in self.units else len(self.units)
+        original = self.units[:cut]
+        if len(original) == len(visible):
+            stored = merge_stored_units(original, visible, rule)
+        else:
+            stored = encode_units(visible, rule)
         self.units = stored + self.units[cut:]
         self._tail = b""
 

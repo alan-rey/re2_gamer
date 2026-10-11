@@ -194,6 +194,40 @@ def test_edited_text_stores_a_space_as_0x0000():
     assert 0x0000 in bank.messages[0].units
 
 
+def test_editing_one_character_keeps_untouched_bank_a_bytes():
+    """Regression: an edit must not rewrite glyphs the author never touched.
+
+    The disc stores 'A' as bank-A 0x41 in many messages, and ``encode_units``
+    canonicalises it to bank-B 0x21. Rewriting the whole text therefore made a
+    one-character edit rewrite every bank-A byte in the message (measured on the real
+    disc: 8 of message 0's 10 stored units change). Only the position whose letter actually
+    changed may be re-encoded.
+    """
+    stored = [0x41, 0x42, 0x43]        # bank-A 'ABC' -- all three literals
+    blob = build_section([mes.units_to_bytes(stored + [mes.TERMINATOR])])
+    msg = parse(blob).messages[0]
+    assert msg.text() == "ABC"
+    msg.set_text("ABD")
+    assert msg.text() == "ABD"
+    # 'A' and 'B' keep their bank-A bytes; only 'C' -> 'D' is re-encoded (0x24).
+    assert msg.units[:3] == [0x41, 0x42, 0x24], [hex(u) for u in msg.units]
+
+
+def test_editing_across_a_length_change_encodes_canonically():
+    """A length change shifts every later position, so preservation is dropped.
+
+    Comparing old and new units index-wise would pair 'B' with 'C' and keep a byte
+    that belongs to a different character. The safe result is a full canonical
+    re-encode of the message.
+    """
+    stored = [0x41, 0x42]
+    blob = build_section([mes.units_to_bytes(stored + [mes.TERMINATOR])])
+    msg = parse(blob).messages[0]
+    msg.set_text("ABC")
+    assert msg.text() == "ABC"
+    assert msg.units[:3] == [0x21, 0x22, 0x23], [hex(u) for u in msg.units]
+
+
 def test_threshold_rule_decodes_bank_b_glyphs():
     # Bank B stores glyphs 0x20 below their ASCII value: 'N' is stored as 0x2e. The
     # threshold rule adds 0x20 to every unit below 0x40 and recovers the word.
@@ -381,3 +415,33 @@ def test_real_syseff_is_not_a_message_bank():
         data = fp.read()
     assert data[4:7] == b"MDL", data[:8].hex()
     assert mes.find_sections(data) == []
+
+
+def test_real_no_op_edit_rewrites_no_bytes():
+    """The whole point of bank preservation, measured on the real disc.
+
+    Setting a message's text to the text it already has must leave every stored byte
+    alone. Before preservation this rewrote every bank-A unit in the message (8 of message 0's 10
+    stored units, every one a bank-A glyph).
+
+    Messages whose text view is not lossless are skipped, not silently passed: where
+    ``text_to_units(msg.text())`` does not reproduce the visible units, the text view
+    cannot round-trip and a no-op edit is not a meaningful test of it.
+    """
+    bank = _sysmes()
+    if bank is None:
+        return
+    checked = skipped = 0
+    for msg in bank.messages:
+        cut = (msg.units.index(mes.TERMINATOR) if mes.TERMINATOR in msg.units
+               else len(msg.units))
+        visible = mes.decode_units(msg.units[:cut])
+        text = msg.text()
+        if mes.text_to_units(text) != visible:
+            skipped += 1
+            continue
+        before = msg.raw()
+        msg.set_text(text)
+        assert msg.raw() == before, (msg.index, text)
+        checked += 1
+    assert checked > 400, (checked, skipped)

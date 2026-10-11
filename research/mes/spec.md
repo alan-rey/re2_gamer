@@ -25,7 +25,7 @@ The module implements both directions. `Mes.rebuild()` is the write path, proven
 byte-exact against the real bank. It is deliberately a *no-change* repacker: it rebuilds
 a bank that is bit-identical to the input. Editing a message is a separate, opt-in path
 (`Message.set_text()` / `Message.set_visible_units()`) because the text view is lossy —
-see rule 5.
+see rules 5 and 6.
 
 ## Layout
 
@@ -81,6 +81,19 @@ Per section:
    the message level, not re-encode the visible text wholesale.**
    `tests/test_mes.py` asserts both halves of this: the lossiness, and that the no-change
    rebuild still round-trips exactly.
+
+6. **Editing keeps the stored bytes of characters it does not change.** `set_text()`
+   compares the new text against the old stored units position by position and re-encodes
+   only the positions whose *visible* unit actually changed; every other position keeps
+   the byte the disc gave it. So editing one character no longer rewrites the message's
+   bank-A glyphs into bank-B -- which is what a whole-text encode did, and would have left
+   the text reading identically while moving bytes the author never touched. Measured on
+   the real bank: a no-op `set_text()` that re-encodes the visible text wholesale rewrites
+   8 of message 0's 10 stored units; with preservation it rewrites none, across all 677
+   messages. When the new text has a *different length* the positions no longer line up,
+   so preservation is dropped for that message and the text is encoded canonically -- a
+   length change rewrites the span regardless, and pairing old units with the wrong
+   positions would be worse than re-encoding.
 
 ### Measured shape of the real bank
 
@@ -154,6 +167,9 @@ mistaken for a regression later.
   criterion met for this format.
 - **Measured, not asserted**: the glyph rule is validated by the printable-ratio
   comparison above, and the section fingerprint by the real `first_rel` values.
+- **Edit path proven**: a no-op `set_text()` rewrites zero bytes across all 677 real
+  messages (`test_real_no_op_edit_rewrites_no_bytes`); a length-changing edit falls back
+  to a canonical re-encode (`test_editing_across_a_length_change_encodes_canonically`).
 
 ## Open questions
 
