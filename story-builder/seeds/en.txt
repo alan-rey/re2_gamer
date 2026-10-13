@@ -38,3 +38,8 @@ Progenitor Virus
 
 # --- Source article for the game itself ---
 Resident Evil: Code Veronica
+
+# --- Plot-bearing cutscene cited by character biographies ---
+# Lowercase "despair" on purpose: the cutscene page. The capitalised
+# "Thrown Into Despair" is the music track and carries no plot.
+Thrown into despair
