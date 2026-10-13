@@ -36,6 +36,14 @@ dist/
 *.xdelta3
 *.patch
 
+# --- Story research quarantine (third-party CC-BY-SA wiki text) -------------
+# Raw MediaWiki API responses and generated maps contain bulk text copied from
+# residentevil.fandom.com. It is licensed CC-BY-SA, not ours to redistribute,
+# so the cache of raw responses and the generated maps stay out of the repo.
+# Only our own original summaries/lore-bible text belongs in content/.
+story-builder/cache/
+story-builder/out/
+
 # --- Python -----------------------------------------------------------------
 __pycache__/
 *.py[cod]

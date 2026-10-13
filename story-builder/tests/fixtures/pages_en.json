@@ -1,0 +1,35 @@
+{
+  "_comment": "SYNTHETIC fixture. All prose here was written for this test and is NOT copied from any wiki. It exists only to exercise the parser/classifier offline.",
+  "pages": {
+    "Claire Redfield": {
+      "wikitext": "{{Infobox character\n| name = Claire Redfield\n| family = [[Chris Redfield]]\n| affiliation = [[S.T.A.R.S.]]\n| occupation = College student\n}}\n'''Claire Redfield''' is a survivor who travels to [[Rockfort Island]] in search of her brother. She carries a [[Combat Knife]].\n\n== History ==\nIn [[1998]] she arrived at the island. A [[Zombie]] attacked her on arrival.\n\n== Navigation ==\n{{Navbox Characters}}\n",
+      "categories": ["Category:Characters", "Category:Protagonists"],
+      "links": ["Chris Redfield", "Rockfort Island", "Combat Knife", "Zombie", "S.T.A.R.S."]
+    },
+    "Chris Redfield": {
+      "wikitext": "{{Infobox character\n| name = Chris Redfield\n| family = [[Claire Redfield]]\n| affiliation = [[S.T.A.R.S.]]\n}}\n'''Chris Redfield''' is a former air force pilot and the brother of [[Claire Redfield]].\n",
+      "categories": ["Category:Characters"],
+      "links": ["Claire Redfield", "S.T.A.R.S."]
+    },
+    "Rockfort Island": {
+      "wikitext": "{{Infobox location\n| name = Rockfort Island\n}}\n'''Rockfort Island''' is a prison island facility in the southern ocean. It houses a training centre and a detention block where a [[Zombie]] outbreak begins.\n",
+      "categories": ["Category:Locations"],
+      "links": ["Zombie", "Claire Redfield"]
+    },
+    "Zombie": {
+      "wikitext": "{{Infobox creature\n| name = Zombie\n| species = [[T-Virus]]\n}}\n'''Zombies''' are reanimated humans created by the [[T-Virus]].\n",
+      "categories": ["Category:Creatures", "Category:Bio-Organic Weapons"],
+      "links": ["T-Virus"]
+    },
+    "T-Virus": {
+      "wikitext": "'''T-Virus''' is a biological agent. It is the basis of many creatures.\n",
+      "categories": ["Category:Items", "Category:Viruses"],
+      "links": ["Zombie"]
+    },
+    "Combat Knife": {
+      "wikitext": "{{Infobox item\n| name = Combat Knife\n| creator = [[Umbrella Corporation]]\n}}\nThe '''Combat Knife''' is a melee weapon found on [[Rockfort Island]].\n",
+      "categories": ["Category:Weapons", "Category:Items"],
+      "links": ["Umbrella Corporation", "Rockfort Island"]
+    }
+  }
+}

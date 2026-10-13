@@ -1,0 +1,40 @@
+# wikimap seed list -- English (residentevil.fandom.com/wiki/<title>)
+#
+# One article title per line. Blank lines and lines starting with '#' are
+# ignored. Titles that do not exist on the wiki are reported as MISSING and
+# skipped, so it is safe to edit this file by hand and re-run.
+#
+# Curated for reconstructing the story of Resident Evil: Code Veronica X.
+
+# --- Protagonists and central figures ---
+Claire Redfield
+Chris Redfield
+Steve Burnside
+Albert Wesker
+
+# --- The Ashford family (the game's antagonists) ---
+Alexander Ashford
+Alexia Ashford
+Alfred Ashford
+
+# --- Supporting cast ---
+Rodrigo Juan Raval
+Antonio Taylor
+
+# --- Organisations ---
+Umbrella Corporation
+S.T.A.R.S.
+
+# --- Locations ---
+Rockfort Island
+
+# --- Creatures and enemies ---
+Bandersnatch
+
+# --- Viruses, items and science ---
+T-Veronica Virus
+T-Virus
+Progenitor Virus
+
+# --- Source article for the game itself ---
+Resident Evil: Code Veronica

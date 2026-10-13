@@ -1,0 +1,14 @@
+# wikimap seed list -- Spanish (residentevil.fandom.com/es/wiki/<title>)
+#
+# Same format as en.txt. Proper nouns (character names) are usually identical
+# across languages; common-noun article titles are NOT. Verify with:
+#   python -m wikimap --lang es check
+# which probes the first seed below and prints the wiki's licence + endpoint.
+
+Claire Redfield
+Chris Redfield
+Steve Burnside
+Albert Wesker
+Alexia Ashford
+Alfred Ashford
+Alexander Ashford
