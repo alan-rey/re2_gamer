@@ -2,11 +2,13 @@
 
 Subcommands
 -----------
-check   Diagnose the target wiki (endpoint, licence, robots.txt) and verify
-        that one seed title resolves on that language wiki.
-crawl   Fetch seed articles, optionally expand by unresolved references, then
-        export the knowledge map as JSON + Graphviz DOT + Markdown.
-search  Discover candidate seed titles by full-text search.
+check    Diagnose the target wiki (endpoint, licence, robots.txt) and verify
+         that one seed title resolves on that language wiki.
+crawl    Fetch seed articles, optionally expand by unresolved references, then
+         export the knowledge map as JSON + Graphviz DOT + Markdown.
+frontier Rank the unfetched references of the fetched corpus: which articles to
+         seed next, and *why*, before spending any requests on them.
+search   Discover candidate seed titles by full-text search.
 
 The CLI is deliberately thin: all logic lives in the imported modules so the
 same functions are testable without ever touching the network.
@@ -19,6 +21,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import frontier as frontier_mod
 from .config import (
     DEFAULT_MAXLAG,
     DEFAULT_RATE_LIMIT_S,
@@ -62,6 +65,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_crawl.add_argument("--depth", type=int, default=0, help="Expansion rounds via unresolved references (0 = seeds only).")
     p_crawl.add_argument("--max-pages", type=int, default=MAX_PAGES_DEFAULT, help="Hard cap on pages fetched.")
     p_crawl.add_argument("--formats", default="json,dot,md", help="Comma-separated exports: json,dot,md.")
+
+    p_frontier = sub.add_parser(
+        "frontier",
+        help="Rank the unfetched references of the fetched corpus (what to fetch next, and why).",
+    )
+    p_frontier.add_argument("--seeds", default=None, help="Comma-separated seed titles.")
+    p_frontier.add_argument("--seed-file", default=None, help="File with one title per line (# comments allowed).")
+    p_frontier.add_argument("--depth", type=int, default=0, help="Expansion rounds before ranking (0 = seeds only).")
+    p_frontier.add_argument("--max-pages", type=int, default=MAX_PAGES_DEFAULT, help="Hard cap on pages fetched.")
+    p_frontier.add_argument("--limit", type=int, default=40, help="How many candidates to report (0 = all).")
+    p_frontier.add_argument("--formats", default="md,json", help="Comma-separated exports: json,md.")
 
     p_search = sub.add_parser("search", help="Find candidate seed titles by full-text search.")
     p_search.add_argument("query", help="Search terms.")
@@ -118,6 +132,34 @@ def resolve_seeds(args: argparse.Namespace) -> list[str]:
     return read_seeds(path)
 
 
+def crawl_pages(
+    client: WikiClient,
+    seeds: list[str],
+    depth: int = 0,
+    max_pages: int = MAX_PAGES_DEFAULT,
+) -> dict:
+    """Fetch seeds, optionally expand via unresolved references, return pages.
+
+    This is the shared engine behind `crawl` and the `frontier` command. It is
+    split out from `crawl` because the frontier ranker needs the *raw* page
+    dicts: it scores candidates by how many fetched pages reference them, and
+    that reference evidence is thrown away once a `KnowledgeMap` is built.
+
+    Returns the `fetch_extended` output, keyed by article title.
+    """
+    pages: dict = {}
+    wanted = list(dict.fromkeys(t.strip() for t in seeds if t.strip()))
+    for _ in range(max(0, depth) + 1):
+        room = max(0, max_pages - len(pages))
+        new = [t for t in wanted if t and t not in pages][:room]
+        if not new:
+            break
+        fetched = client.fetch_extended(new)
+        pages.update(fetched)
+        wanted = build_map(pages, lang=client.lang).unresolved
+    return pages
+
+
 def crawl(
     client: WikiClient,
     seeds: list[str],
@@ -131,16 +173,7 @@ def crawl(
     but not themselves fetched (the map's `unresolved` list), so a small seed
     set can grow toward the parts of the wiki that actually co-reference.
     """
-    pages: dict = {}
-    frontier = list(dict.fromkeys(t.strip() for t in seeds if t.strip()))
-    for _ in range(max(0, depth) + 1):
-        room = max(0, max_pages - len(pages))
-        new = [t for t in frontier if t and t not in pages][:room]
-        if not new:
-            break
-        fetched = client.fetch_extended(new)
-        pages.update(fetched)
-        frontier = build_map(pages, lang=client.lang).unresolved
+    pages = crawl_pages(client, seeds, depth=depth, max_pages=max_pages)
     return build_map(pages, lang=client.lang)
 
 
@@ -201,6 +234,47 @@ def cmd_crawl(args: argparse.Namespace, client: WikiClient) -> int:
     return 0
 
 
+def cmd_frontier(args: argparse.Namespace, client: WikiClient) -> int:
+    seeds = resolve_seeds(args)
+    pages = crawl_pages(client, seeds, depth=args.depth, max_pages=args.max_pages)
+
+    # A seed that came back MISSING is a dead title, and an already-fetched page
+    # is not a frontier at all. Excluding both means the queue offers only new,
+    # reachable work rather than replaying questions already answered.
+    dead = [title for title, page in pages.items() if page.get("missing")]
+    limit = args.limit if args.limit > 0 else -1
+    ranked = frontier_mod.rank_candidates(
+        pages, limit=limit, exclude=list(seeds) + dead
+    )
+
+    out_dir = Path(args.out_dir) if args.out_dir else OUT_DIR / client.lang
+    out_dir.mkdir(parents=True, exist_ok=True)
+    formats = [f.strip().lower() for f in args.formats.split(",") if f.strip()]
+    written: list[str] = []
+    if "md" in formats:
+        path = out_dir / "frontier.md"
+        path.write_text(frontier_mod.to_markdown(ranked), encoding="utf-8")
+        written.append(str(path))
+    if "json" in formats:
+        path = out_dir / "frontier.json"
+        path.write_text(
+            json.dumps(frontier_mod.to_dict(ranked), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        written.append(str(path))
+
+    fetched = sum(1 for page in pages.values() if not page.get("missing"))
+    print(f"corpus : {fetched} page(s) fetched, {len(dead)} missing")
+    print(f"queue  : {len(ranked)} candidate(s) ranked")
+    for path in written:
+        print(f"wrote  {path}")
+
+    for index, candidate in enumerate(ranked[:10], start=1):
+        why = "; ".join(candidate.reasons) or "-"
+        print(f"  {index:>2}. {candidate.title}  [{candidate.score}] {why}")
+    return 0
+
+
 def cmd_search(args: argparse.Namespace, client: WikiClient) -> int:
     for title in client.search(args.query, limit=args.limit):
         print(title)
@@ -216,6 +290,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_check(args, client)
         if args.command == "crawl":
             return cmd_crawl(args, client)
+        if args.command == "frontier":
+            return cmd_frontier(args, client)
         if args.command == "search":
             return cmd_search(args, client)
     except WikiError as exc:
